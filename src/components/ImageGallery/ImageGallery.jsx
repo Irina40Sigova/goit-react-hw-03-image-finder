@@ -3,26 +3,20 @@ import PropTypes from 'prop-types';
 import { ImageGalleryItem } from 'components/ImageGalleryItem/ImageGalleryItem';
 import { Gallery } from './ImageGallery.styled';
 
-export const ImageGallery = ({ images, handleSelectedImage }) => {
-  return (
-    <Gallery>
-      {images.map(({ id, webformatURL, tags, largeImageURL }) => (
-        <ImageGalleryItem
-          key={id}
-          webImg={webformatURL}
-          tags={tags}
-          handleSelectedImage={() => handleSelectedImage(largeImageURL, tags)}
-        />
-      ))}
-    </Gallery>
-  );
-};
+export const ImageGallery = ({ images, onClick }) => (
+  <Gallery onClick={onClick}>
+    {images.map(({ id, webformatURL, largeImageURL, tags }) => (
+      <ImageGalleryItem
+        key={id}
+        webformatURL={webformatURL}
+        largeImageURL={largeImageURL}
+        tags={tags}
+      />
+    ))}
+  </Gallery>
+);
 
 ImageGallery.propTypes = {
-  images: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.number.isRequired,
-    })
-  ),
-  handleSelectedImage: PropTypes.func,
+  images: PropTypes.arrayOf(PropTypes.shape).isRequired,
+  onClick: PropTypes.func.isRequired,
 };

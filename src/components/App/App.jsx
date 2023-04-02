@@ -1,60 +1,87 @@
 import React, { Component } from 'react';
-import { Notify } from 'notiflix/build/notiflix-notify-aio';
-import fetchApi from 'components/services/fetchApi';
 
 import { Container } from './App.styled';
+import { Notify } from 'notiflix/build/notiflix-notify-aio';
+
+import fetchApi from 'components/services/fetchApi';
 
 import { Searchbar } from 'components/Searchbar/Searchbar';
-import { ImageGallery } from 'components/ImageGallery/ImageGallery';
 import { Loader } from 'components/Loader/Loader';
+import { ImageGallery } from 'components/ImageGallery/ImageGallery';
+import { Button } from 'components/Button/Button';
+import { Modal } from 'components/Modal/Modal';
 
 export class App extends Component {
   state = {
-    query: '',
+    images: [],
+    loading: false,
+    error: null,
+    searchQuery: '',
     page: 1,
 
-    images: [],
-
-    selectedImage: null,
-    alt: null,
-
-    error: null,
+    modalData: null,
   };
 
-  async componentDidUpdate(prevProps, prevState) {
-    const nextQuery = this.state.query;
-    const nextPage = this.state.page;
-    if (prevState.query !== nextQuery || prevState.page !== nextPage) {
+  componentDidUpdate(_, prevState) {
+    const prevQuery = prevState.searchQuery;
+    const nextQuery = this.state.searchQuery;
+
+    if (prevQuery !== nextQuery) {
+      this.fetchImages();
     }
-    try {
-      const response = await fetchApi(nextQuery, nextPage);
-      this.setState({ images: response.hits });
-    } catch (error) {
-      Notify.failure(`Sorry something went wrong. ${error.message}`);
-      this.setState({ error: error.message });
-    }
+
+    window.scrollTo({
+      top: document.documentElement.scrollHeight,
+      behavior: 'smooth',
+    });
   }
 
-  handleSearchFormSubmit = query => {
-    this.setState({ query, images: [], nextPage: 1 });
+  fetchImages = () => {
+    this.setState({ loading: true });
+    fetchApi(this.state.searchQuery, this.state.page)
+      .then(images =>
+        this.setState(prevState => ({
+          images: [...prevState.images, ...images],
+          page: prevState.page + 1,
+        }))
+      )
+      .catch(error => this.setState({ error }))
+      .finally(() => this.setState({ loading: false }));
   };
 
-  handleSelectedImage = (largeImageURL, tags) => {
-    this.setState({ selectedImage: largeImageURL, alt: tags });
+  handleSearchFormSubmit = query => {
+    this.setState({ searchQuery: query, page: 1, images: [] });
+  };
+
+  toggleModal = (modalData = null) => {
+    this.setState({
+      modalData: modalData,
+    });
   };
 
   render() {
-    const { images } = this.state;
+    const { images, loading, error, modalData } = this.state;
     return (
       <Container>
         <Searchbar handleSearchFormSubmit={this.handleSearchFormSubmit} />
+        {error &&
+          Notify.failure(`Sorry something went wrong: ${error.message}`)}
+
+        {loading && <Loader />}
+
         {images.length > 0 && (
-          <ImageGallery
-            images={images}
-            handleSelectedImage={this.handleSelectedImage}
-          />
+          <ImageGallery images={images} onClick={this.toggleModal} />
         )}
-        <Loader />
+
+        {images.length > 0 && !loading && (
+          <Button loadMore={this.fetchImages} />
+        )}
+
+        {modalData && (
+          <Modal onClose={this.toggleModal}>
+            <img src={modalData.largeImageURL} alt={modalData.tags} />
+          </Modal>
+        )}
       </Container>
     );
   }
