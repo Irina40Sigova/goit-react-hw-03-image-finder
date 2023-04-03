@@ -14,43 +14,53 @@ import { Modal } from 'components/Modal/Modal';
 export class App extends Component {
   state = {
     images: [],
-    loading: false,
-    error: null,
     searchQuery: '',
     page: 1,
+    totalImages: 0,
 
+    error: null,
+    loading: false,
     modalData: null,
   };
 
   componentDidUpdate(_, prevState) {
-    const prevQuery = prevState.searchQuery;
-    const nextQuery = this.state.searchQuery;
+    const { searchQuery, page, error } = this.state;
 
-    if (prevQuery !== nextQuery) {
+    if (prevState.searchQuery !== searchQuery || prevState.page !== page) {
       this.fetchImages();
     }
 
-    window.scrollTo({
-      top: document.documentElement.scrollHeight,
-      behavior: 'smooth',
-    });
+    if (prevState.error !== error) {
+      Notify.failure(`Sorry something went wrong: ${error}`);
+    }
   }
 
   fetchImages = () => {
-    this.setState({ loading: true });
-    fetchApi(this.state.searchQuery, this.state.page)
-      .then(images =>
+    const { page, searchQuery } = this.state;
+    this.setState({ loading: true, error: null });
+
+    fetchApi(searchQuery, page)
+      .then(data => {
+        const images = data.hits.map(
+          ({ id, tags, webformatURL, largeImageURL }) => ({
+            id,
+            tags,
+            webformatURL,
+            largeImageURL,
+          })
+        );
         this.setState(prevState => ({
           images: [...prevState.images, ...images],
-          page: prevState.page + 1,
-        }))
-      )
-      .catch(error => this.setState({ error }))
+          error: null,
+          totalImages: data.totalHits,
+        }));
+      })
+      .catch(error => this.setState({ error: error.massage }))
       .finally(() => this.setState({ loading: false }));
   };
 
   handleSearchFormSubmit = query => {
-    this.setState({ searchQuery: query, page: 1, images: [] });
+    this.setState({ searchQuery: query, page: 1, images: [], totalImages: 0 });
   };
 
   toggleModal = (modalData = null) => {
@@ -59,23 +69,27 @@ export class App extends Component {
     });
   };
 
+  loadMore = () => {
+    this.setState(prevState => ({
+      page: prevState.page + 1,
+    }));
+  };
+
   render() {
-    const { images, loading, error, modalData } = this.state;
+    const { images, loading, modalData, totalImages } = this.state;
     return (
       <Container>
         <Searchbar handleSearchFormSubmit={this.handleSearchFormSubmit} />
-        {error &&
-          Notify.failure(`Sorry something went wrong: ${error.message}`)}
-
-        {loading && <Loader />}
 
         {images.length > 0 && (
           <ImageGallery images={images} onClick={this.toggleModal} />
         )}
 
-        {images.length > 0 && !loading && (
-          <Button loadMore={this.fetchImages} />
+        {images.length !== totalImages && !loading && (
+          <Button loadMore={this.loadMore} />
         )}
+
+        {loading && <Loader />}
 
         {modalData && (
           <Modal onClose={this.toggleModal}>
